@@ -94,6 +94,7 @@ workflow JointGenotyping {
         ref_fasta_index = ref_fasta_index,
         ref_dict = ref_dict,
         dbsnp_vcf = dbsnp_vcf,
+        dbsnp_vcf_index = dbsnp_vcf_index,
         gatk_path = gatk_path,
         excess_het_threshold = excess_het_threshold,
         batch_size = 50
@@ -209,6 +210,7 @@ task GenotypeGVCFs {
     File ref_dict
 
     File dbsnp_vcf
+    File dbsnp_vcf_index
 
     Int batch_size
     String mem_size
@@ -288,6 +290,9 @@ task IndelsVariantRecalibrator {
   }
 
   command <<<
+    IFS=$'\n\t'
+    axiom_maybe_null="~{default="" axiomPoly_resource_vcf}"
+    axiom_arg=${axiom_maybe_null:+-resource "axiomPoly,known=false,training=true,truth=false,prior=10:$axiom_maybe_null"}
     "~{gatk_path}" --java-options "~{java_opt}" \
       VariantRecalibrator \
       -V "~{sites_only_variant_filtered_vcf}" \
@@ -299,7 +304,7 @@ task IndelsVariantRecalibrator {
       -mode INDEL \
       --max-gaussians 4 \
       -resource mills,known=false,training=true,truth=true,prior=12:"~{mills_resource_vcf}" \
-      ~{'-resource "axiomPoly,known=false,training=true,truth=false,prior=10:' + axiomPoly_resource_vcf + '"'} \
+      $axiom_arg \
       -resource dbsnp,known=true,training=false,truth=false,prior=2:"~{dbsnp_vcf}"
   >>>
   runtime {
